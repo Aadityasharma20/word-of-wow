@@ -37,6 +37,9 @@ export const useAuthStore = create<AuthState>((set) => ({
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password, role, displayName, companyName }),
+                signal: AbortSignal.timeout(30000),
+            }).catch(() => {
+                throw new Error('Server is waking up — please wait 30 seconds and try again.');
             });
 
             const json = await res.json();
@@ -110,12 +113,13 @@ export const useAuthStore = create<AuthState>((set) => ({
             const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
             const profileRes = await fetch(`${baseUrl}/auth/session`, {
                 headers: { 'Authorization': `Bearer ${signInData.session?.access_token}` },
-            });
+                signal: AbortSignal.timeout(15000),
+            }).catch(() => null);
 
             let role: 'advocate' | 'brand' | 'admin' = 'advocate';
             let displayName = email;
 
-            if (profileRes.ok) {
+            if (profileRes?.ok) {
                 const profileJson = await profileRes.json();
                 role = profileJson.data?.user?.role || 'advocate';
                 displayName = profileJson.data?.user?.displayName || email;
