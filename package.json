@@ -1,0 +1,16 @@
+{
+  "name": "word-of-wow",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "client",
+    "server",
+    "shared"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=client",
+    "dev:server": "npm run dev --workspace=server",
+    "build": "npm run build --workspace=client",
+    "build:server": "npm run build --workspace=server"
+  }
+}

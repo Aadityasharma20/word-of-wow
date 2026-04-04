@@ -1,0 +1,9 @@
+# Word of Wow — robots.txt
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /advocate/
+Disallow: /brand/
+Disallow: /admin/
+
+Sitemap: https://wordofwow.com/sitemap.xml
