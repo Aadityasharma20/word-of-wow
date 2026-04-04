@@ -1,5 +1,5 @@
-import { Worker, Job } from 'bullmq';
-import redis from '../../lib/redis';
+import { Worker, Job, ConnectionOptions } from 'bullmq';
+import { getRedis } from '../../lib/redis';
 import { supabaseAdmin } from '../../lib/supabase';
 import { isValidRedditUrl, processRedditSubmission } from '../../services/reddit';
 import { isValidLinkedInUrl, processLinkedInSubmission } from '../../services/linkedin';
@@ -131,7 +131,7 @@ async function processContentFetch(job: Job<ContentFetchJobData>) {
 
 export function startContentFetchWorker() {
     const worker = new Worker('content-fetch', processContentFetch, {
-        connection: redis,
+        connection: getRedis() as ConnectionOptions,
         concurrency: 5,
     });
 

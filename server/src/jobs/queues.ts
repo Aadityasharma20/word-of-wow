@@ -1,7 +1,7 @@
-import { Queue } from 'bullmq';
-import redis from '../lib/redis';
+import { Queue, ConnectionOptions } from 'bullmq';
+import { getRedis } from '../lib/redis';
 
-const defaultConnection = redis;
+const defaultConnection = getRedis() as ConnectionOptions;
 
 // ── Queue Definitions ──────────────────────────────────────
 

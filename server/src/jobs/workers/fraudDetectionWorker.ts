@@ -1,5 +1,5 @@
-import { Worker, Job } from 'bullmq';
-import redis from '../../lib/redis';
+import { Worker, Job, ConnectionOptions } from 'bullmq';
+import { getRedis } from '../../lib/redis';
 import { supabaseAdmin } from '../../lib/supabase';
 import { runFraudChecks, FraudFlag } from '../../services/fraudDetection';
 import { rewardProcessingQueue } from '../queues';
@@ -165,7 +165,7 @@ async function processFraudDetection(job: Job<FraudDetectionJobData>) {
 
 export function startFraudDetectionWorker() {
     const worker = new Worker('fraud-detection', processFraudDetection, {
-        connection: redis,
+        connection: getRedis() as ConnectionOptions,
         concurrency: 3,
     });
 

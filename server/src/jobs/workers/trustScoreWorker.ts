@@ -1,5 +1,5 @@
-import { Worker, Job } from 'bullmq';
-import redis from '../../lib/redis';
+import { Worker, Job, ConnectionOptions } from 'bullmq';
+import { getRedis } from '../../lib/redis';
 import { supabaseAdmin } from '../../lib/supabase';
 import { calculateTrustScore } from '../../services/trustScore';
 
@@ -67,7 +67,7 @@ async function processTrustScoreUpdate(job: Job<TrustScoreJobData>) {
 
 export function startTrustScoreWorker() {
     const worker = new Worker('trust-score-update', processTrustScoreUpdate, {
-        connection: redis,
+        connection: getRedis() as ConnectionOptions,
         concurrency: 2,
     });
 

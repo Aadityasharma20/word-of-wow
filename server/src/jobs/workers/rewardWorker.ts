@@ -1,5 +1,5 @@
-import { Worker, Job } from 'bullmq';
-import redis from '../../lib/redis';
+import { Worker, Job, ConnectionOptions } from 'bullmq';
+import { getRedis } from '../../lib/redis';
 import { supabaseAdmin } from '../../lib/supabase';
 import { assignCoupon } from '../../services/couponService';
 import { trustScoreUpdateQueue } from '../queues';
@@ -48,7 +48,7 @@ async function processReward(job: Job<RewardJobData>) {
 
 export function startRewardWorker() {
     const worker = new Worker('reward-processing', processReward, {
-        connection: redis,
+        connection: getRedis() as ConnectionOptions,
         concurrency: 2,
     });
 

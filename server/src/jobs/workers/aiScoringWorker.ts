@@ -1,5 +1,5 @@
-import { Worker, Job } from 'bullmq';
-import redis from '../../lib/redis';
+import { Worker, Job, ConnectionOptions } from 'bullmq';
+import { getRedis } from '../../lib/redis';
 import { supabaseAdmin } from '../../lib/supabase';
 import { scoreSubmission } from '../../services/aiScoring';
 import { fraudDetectionQueue } from '../queues';
@@ -123,7 +123,7 @@ async function processAiScoring(job: Job<AiScoringJobData>) {
 
 export function startAiScoringWorker() {
     const worker = new Worker('ai-scoring', processAiScoring, {
-        connection: redis,
+        connection: getRedis() as ConnectionOptions,
         concurrency: 3,
     });
 
