@@ -153,8 +153,9 @@ export default function CreateCampaign() {
           maxScore: t.max_score,
           discountPercent: t.discount_percent,
         })),
-        approvalMode: approvalModes,
-        autoApprove: Object.values(approvalModes).some(m => m === 'auto'),
+        approvalMode: Object.values(approvalModes).includes('wow_team') ? 'wow_team'
+          : Object.values(approvalModes).includes('manual') ? 'manual' : 'auto',
+        autoApprove: Object.values(approvalModes).every(m => m === 'auto'),
         instagramConfig: hasInstagram ? {
           minFollowers: igMinFollowers,
           requireStory: igRequireStory,
