@@ -233,9 +233,12 @@ router.get('/', authMiddleware, async (req: Request, res: Response) => {
         const { data, error, count } = await query;
 
         if (error) {
+            console.error('[CAMPAIGNS] GET / error:', error.message, error.code, error.details);
             res.status(500).json({ error: 'Failed to fetch campaigns', code: 500 });
             return;
         }
+
+        console.log(`[CAMPAIGNS] GET / returning ${(data || []).length} campaigns for user ${req.user!.id} (role: ${req.user!.role})`);
 
         res.json({
             data,
@@ -625,6 +628,74 @@ router.get('/:id/coupons', authMiddleware, roleGuard('brand', 'admin'), async (r
         }));
 
         res.json({ data: tierStats });
+    } catch (err) {
+        res.status(500).json({ error: 'Internal server error', code: 500 });
+    }
+});
+
+// --- GET /api/campaigns/:id/public --- (NO AUTH — for public campaign landing pages)
+router.get('/:id/public', async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+
+        // Fetch campaign (active only) with brand info
+        const { data: campaign, error } = await supabaseAdmin
+            .from('campaigns')
+            .select('id, title, description, guidelines, target_platforms, campaign_type, keywords, start_date, end_date, brand_id')
+            .eq('id', id)
+            .eq('status', 'active')
+            .single();
+
+        if (error || !campaign) {
+            res.status(404).json({ error: 'Campaign not found or no longer active', code: 404 });
+            return;
+        }
+
+        // Fetch brand info
+        const { data: brandProfile } = await supabaseAdmin
+            .from('brand_profiles')
+            .select('company_name, logo_url, website_url, industry')
+            .eq('id', campaign.brand_id)
+            .single();
+
+        // Fetch reward tiers
+        const { data: tiers } = await supabaseAdmin
+            .from('coupon_tiers')
+            .select('min_score, max_score, discount_percent')
+            .eq('campaign_id', id)
+            .order('min_score', { ascending: true });
+
+        // Fetch submission count for social proof
+        const { count: submissionCount } = await supabaseAdmin
+            .from('submissions')
+            .select('*', { count: 'exact', head: true })
+            .eq('campaign_id', id);
+
+        res.json({
+            data: {
+                id: campaign.id,
+                title: campaign.title,
+                description: campaign.description,
+                guidelines: campaign.guidelines,
+                platforms: campaign.target_platforms,
+                campaignType: campaign.campaign_type,
+                keywords: campaign.keywords,
+                startDate: campaign.start_date,
+                endDate: campaign.end_date,
+                brand: {
+                    name: brandProfile?.company_name || 'Brand',
+                    logo: brandProfile?.logo_url || null,
+                    website: brandProfile?.website_url || null,
+                    industry: brandProfile?.industry || null,
+                },
+                rewardTiers: (tiers || []).map((t: any) => ({
+                    minScore: t.min_score,
+                    maxScore: t.max_score,
+                    discountPercent: t.discount_percent,
+                })),
+                participantCount: submissionCount || 0,
+            },
+        });
     } catch (err) {
         res.status(500).json({ error: 'Internal server error', code: 500 });
     }

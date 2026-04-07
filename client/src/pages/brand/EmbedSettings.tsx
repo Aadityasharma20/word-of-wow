@@ -104,16 +104,33 @@ export default function EmbedSettings() {
 
   useEffect(() => {
     api.get('/campaigns').then(res => {
-      // Handle both response shapes: { campaigns: [...] } or direct array
-      const raw = res.data?.campaigns || res.data?.data?.campaigns || res.data || [];
-      const list = Array.isArray(raw) ? raw : [];
-      const active = list.filter((c: any) => c.status === 'active');
-      setCampaigns(active);
-      if (active.length > 0) {
-        setSelectedCampaign(active[0].id);
+      console.log('[EmbedSettings] API response:', JSON.stringify(res.data, null, 2));
+      // Server returns { data: [...], total, page, limit, totalPages }
+      let list: any[] = [];
+      if (Array.isArray(res.data?.data)) {
+        list = res.data.data;
+      } else if (Array.isArray(res.data)) {
+        list = res.data;
+      } else if (res.data && typeof res.data === 'object') {
+        // Try every possible key
+        const possibleKeys = ['data', 'campaigns', 'results', 'items'];
+        for (const key of possibleKeys) {
+          if (Array.isArray(res.data[key])) {
+            list = res.data[key];
+            break;
+          }
+        }
+      }
+      console.log('[EmbedSettings] Parsed campaigns:', list.length, list.map((c: any) => ({ id: c.id, title: c.title, status: c.status })));
+      setCampaigns(list);
+      if (list.length > 0) {
+        setSelectedCampaign(list[0].id);
       }
       setLoading(false);
-    }).catch(() => setLoading(false));
+    }).catch(err => {
+      console.error('[EmbedSettings] Failed to fetch campaigns:', err?.response?.status, err?.response?.data, err?.message);
+      setLoading(false);
+    });
   }, []);
 
   useEffect(() => {
@@ -207,8 +224,8 @@ export default function EmbedSettings() {
           <label style={labelStyle}>Select Campaign</label>
           <select value={selectedCampaign} onChange={e => setSelectedCampaign(e.target.value)}
             style={{ ...inputStyle, cursor: 'pointer' }}>
-            {campaigns.length === 0 && <option value="">No active campaigns</option>}
-            {campaigns.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+            {campaigns.length === 0 && <option value="">No campaigns found</option>}
+            {campaigns.map(c => <option key={c.id} value={c.id}>{c.title} ({c.status})</option>)}
           </select>
         </div>
         <div style={{ flex: 2, minWidth: 300 }}>

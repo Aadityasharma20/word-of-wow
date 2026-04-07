@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { User, Building2, Eye, EyeOff } from 'lucide-react';
 
 export default function SignupPage() {
   const { signup, signInWithGoogle, error, clearError } = useAuthStore();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectTo = searchParams.get('redirect') || '/';
   const [step, setStep] = useState(1);
   const [role, setRole] = useState<'advocate' | 'brand'>('brand');
   const [email, setEmail] = useState('');
@@ -20,7 +22,7 @@ export default function SignupPage() {
     setSubmitting(true);
     try {
       await signup(email, password, role, displayName, role === 'brand' ? companyName : undefined);
-      navigate('/');
+      navigate(redirectTo);
     } catch { /* error set in store */ }
     finally { setSubmitting(false); }
   };
@@ -125,7 +127,7 @@ export default function SignupPage() {
         )}
 
         <p style={{ textAlign: 'center', marginTop: '1.25rem', color: 'var(--color-text-secondary)', fontSize: '0.85rem' }}>
-          Already have an account? <Link to="/auth/login" style={{ color: 'var(--color-primary-light)', fontWeight: 600 }}>Sign in</Link>
+          Already have an account? <Link to={`/auth/login${redirectTo !== '/' ? `?redirect=${encodeURIComponent(redirectTo)}` : ''}`} style={{ color: 'var(--color-primary-light)', fontWeight: 600 }}>Sign in</Link>
         </p>
       </div>
     </div>

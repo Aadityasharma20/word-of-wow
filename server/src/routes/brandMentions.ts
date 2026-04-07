@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { logger } from '../lib/logger';
+import { isDictionaryWord } from '../lib/commonWords';
 
 const router = Router();
 
@@ -345,6 +346,12 @@ function calculateRelevancy(mention: any, brandName: string): number {
     const brand = brandName.toLowerCase().trim();
     const brandWords = brand.split(/\s+/).filter(w => w.length > 2);
     const text = `${mention.title || ''} ${mention.snippet || ''}`.toLowerCase();
+    const url = (mention.link || '').toLowerCase();
+    
+    // ── MULTI-WORD BRAND ENFORCEMENT ──
+    // For brands with 2+ significant words (e.g. "Red Bull", "Word of Wow"),
+    // ALL words must be present together. A single word match is NOT enough.
+    const isMultiWord = brandWords.length >= 2;
     
     // 1. Exact brand name match = high relevancy
     if (text.includes(brand)) return 1.0;
@@ -353,25 +360,190 @@ function calculateRelevancy(mention: any, brandName: string): number {
     const allWordsPresent = brandWords.length > 0 && brandWords.every(w => text.includes(w));
     if (allWordsPresent) return 0.9;
     
-    // 3. Partial match: at least the longest word is present
+    // ── For multi-word brands, REJECT if not all words are present ──
+    if (isMultiWord) {
+        // Only exception: URL contains the full brand name (concatenated or hyphenated)
+        const brandSlug = brand.replace(/\s+/g, '');
+        const brandHyphen = brand.replace(/\s+/g, '-');
+        if (url.includes(brandSlug) || url.includes(brandHyphen)) return 0.5;
+        
+        // Otherwise, partial matches for multi-word brands are IRRELEVANT
+        return 0.0;
+    }
+    
+    // ── Single-word brand logic (unchanged) ──
+    // 3. Partial match: the word is present in text
     const longestWord = brandWords.sort((a, b) => b.length - a.length)[0] || brand;
     if (longestWord.length >= 3 && text.includes(longestWord)) return 0.6;
     
     // 4. URL contains brand name
-    const url = (mention.link || '').toLowerCase();
     if (url.includes(brand.replace(/\s+/g, ''))) return 0.5;
     if (url.includes(brand.replace(/\s+/g, '-'))) return 0.5;
     
-    // 5. Check if at least 2 meaningful brand words appear
-    const matchingWords = brandWords.filter(w => w.length >= 3 && text.includes(w));
-    if (matchingWords.length >= 2) return 0.5;
-    
-    // 6. Only one small word matches — probably irrelevant
-    if (matchingWords.length === 1 && matchingWords[0].length < 5) return 0.15;
-    if (matchingWords.length === 1) return 0.3;
-    
-    // 7. No match at all — irrelevant
+    // 5. No match at all — irrelevant
     return 0.0;
+}
+
+// ── Dictionary Word Brand Disambiguation ───────────────
+// For brands that are common English words (Apple, Dove, Puma, etc.),
+// filter out mentions that use the word literally, not as a brand.
+// Uses LOCAL heuristics — no API calls.
+
+// Business/brand context indicators (if present, likely about the brand)
+const BRAND_CONTEXT_KEYWORDS = [
+    'company', 'brand', 'product', 'app', 'software', 'platform', 'service',
+    'startup', 'tech', 'launch', 'ceo', 'founder', 'revenue', 'stock',
+    'share price', 'market cap', 'ipo', 'acquisition', 'merger', 'investor',
+    'valuation', 'quarterly', 'earnings', 'annual report', 'partnership',
+    'review', 'rating', 'customer', 'user', 'download', 'update', 'version',
+    'release', 'feature', 'subscription', 'pricing', 'plan', 'trial',
+    'enterprise', 'competitor', 'market share', 'industry', 'sector',
+    'device', 'phone', 'laptop', 'wearable', 'gadget', 'hardware',
+    'innovation', 'patent', 'trademark', 'copyright', 'brand ambassador',
+    'sponsor', 'campaign', 'marketing', 'advertisement', 'commercial',
+    'coupon', 'discount', 'deal', 'promo', 'offer', 'buy', 'purchase',
+    'order', 'shipping', 'delivery', 'return policy', 'warranty',
+    'customer support', 'help desk', 'faq', 'terms of service',
+];
+
+// Known business domains that indicate a brand mention
+const BUSINESS_DOMAINS = [
+    'techcrunch.com', 'theverge.com', 'wired.com', 'engadget.com',
+    'mashable.com', 'arstechnica.com', 'cnet.com', 'zdnet.com',
+    'bloomberg.com', 'reuters.com', 'forbes.com', 'businessinsider.com',
+    'wsj.com', 'cnbc.com', 'crunchbase.com', 'producthunt.com',
+    'g2.com', 'capterra.com', 'trustpilot.com', 'glassdoor.com',
+    'linkedin.com', 'ycombinator.com', 'techradar.com', 'tomsguide.com',
+    'macrumors.com', 'androidauthority.com', '9to5mac.com',
+    'venturebeat.com', 'hbr.org', 'inc.com', 'entrepreneur.com',
+];
+
+// Literal context patterns for common word brands (word → literal patterns)
+const LITERAL_CONTEXT_PATTERNS: Record<string, RegExp[]> = {
+    apple: [
+        /apple\s*(pie|sauce|cider|juice|tree|orchard|picking|harvest|fruit|seed|slice|bake|crisp|tart|vinegar|crumble)/i,
+        /\b(eat|ate|eating|bake|baking|cook|cooking|recipe|ingredient|delicious|ripe|green|red)\b.*apple/i,
+        /apple.*\b(fruit|healthy|organic|farm|garden|food|snack|dessert|diet)\b/i,
+    ],
+    dove: [
+        /dove\s*(bird|nest|coo|peace|flock|feather|turtle|white\s*dove|ring\s*dove)/i,
+        /\b(bird|pigeon|avian|wildlife|ornithol|nest|flew|flying)\b.*dove/i,
+    ],
+    puma: [
+        /puma\s*(animal|cat|mountain\s*lion|cougar|wild|habitat|conservation)/i,
+        /\b(animal|wildlife|zoo|big\s*cat|predator|species|endangered)\b.*puma/i,
+    ],
+    jaguar: [
+        /jaguar\s*(animal|cat|big\s*cat|wildlife|habitat|conservation|species|zoo)/i,
+        /\b(animal|wildlife|endangered|predator|species|rainforest|zoo)\b.*jaguar/i,
+    ],
+    shell: [
+        /shell\s*(beach|sea|ocean|collect|fossil|clam|oyster|snail|conch|turtle)/i,
+        /\b(seashell|beach|ocean|marine|mollusk|coral)\b.*shell/i,
+    ],
+    sage: [
+        /sage\s*(herb|plant|spice|tea|leaf|garden|cook|season|dried|fresh)/i,
+        /\b(herb|spice|seasoning|cooking|recipe|garden|plant)\b.*sage/i,
+    ],
+    mint: [
+        /mint\s*(herb|plant|tea|leaf|flavor|fresh|garden|julep|chocolate)/i,
+        /\b(herb|tea|flavor|chew|gum|candy|fresh|breath)\b.*mint/i,
+    ],
+    nest: [
+        /\b(bird|egg|robin|eagle|build|hatc|tree|branch)\b.*nest/i,
+        /nest\s*(egg|bird|build|tree|branch|hatc)/i,
+    ],
+    bloom: [
+        /bloom\s*(flower|garden|spring|petal|blossom)/i,
+        /\b(flower|garden|petal|blossom|plant|spring)\b.*bloom/i,
+    ],
+    hive: [
+        /hive\s*(bee|honey|colony|queen|swarm|wax)/i,
+        /\b(bee|honey|beekeeper|pollinator|colony)\b.*hive/i,
+    ],
+    oracle: [
+        /oracle\s*(ancient|greek|delphi|prophecy|divination|myth)/i,
+    ],
+    amazon: [
+        /amazon\s*(river|rainforest|jungle|basin|tribe|forest|deforestation)/i,
+        /\b(river|rainforest|jungle|wildlife|ecosystem|tributary)\b.*amazon/i,
+    ],
+};
+
+/**
+ * Filter mentions for dictionary-word brands.
+ * Returns the filtered array with literal-use mentions removed.
+ */
+function filterDictionaryWordMentions(
+    mentions: any[],
+    brandName: string,
+    brandUrl?: string
+): any[] {
+    const brandLower = brandName.toLowerCase().trim();
+
+    // Only apply to dictionary-word brands
+    if (!isDictionaryWord(brandLower)) return mentions;
+
+    logger.info(`[DISAMBIGUATION] Brand "${brandName}" is a common dictionary word — applying context filter`);
+
+    let brandDomain = '';
+    if (brandUrl) {
+        try { brandDomain = new URL(brandUrl).hostname.replace(/^www\./, ''); } catch { /* invalid URL */ }
+    }
+    const literalPatterns = LITERAL_CONTEXT_PATTERNS[brandLower] || [];
+
+    let filteredOut = 0;
+
+    const filtered = mentions.filter(m => {
+        const text = `${m.title || ''} ${m.snippet || ''}`.toLowerCase();
+        const url = (m.link || '').toLowerCase();
+
+        // ── AUTO-KEEP: URL is from a known business/tech domain ──
+        if (BUSINESS_DOMAINS.some(d => url.includes(d))) return true;
+
+        // ── AUTO-KEEP: URL contains the brand's own domain ──
+        if (brandDomain && url.includes(brandDomain)) return true;
+
+        // ── AUTO-REJECT: Text matches known literal-use patterns ──
+        if (literalPatterns.length > 0 && literalPatterns.some(p => p.test(text))) {
+            filteredOut++;
+            return false;
+        }
+
+        // ── HEURISTIC: Check for business context keywords ──
+        const hasBusinessContext = BRAND_CONTEXT_KEYWORDS.some(kw => text.includes(kw));
+        if (hasBusinessContext) return true;
+
+        // ── HEURISTIC: If text only has the word once and no business context, likely literal ──
+        const brandRegex = new RegExp(`\\b${brandLower}\\b`, 'gi');
+        const matches = text.match(brandRegex);
+        const mentionCount = matches ? matches.length : 0;
+        
+        // If the brand word appears only once and there's no business context, check deeper
+        if (mentionCount <= 1 && !hasBusinessContext) {
+            // Check if it's in a recipe, nature, or casual context
+            const casualIndicators = [
+                'recipe', 'cook', 'bake', 'garden', 'nature', 'animal', 'bird',
+                'flower', 'plant', 'tree', 'fruit', 'vegetable', 'food', 'eat',
+                'pet', 'wild', 'forest', 'ocean', 'beach', 'hobby', 'craft',
+                'diy', 'homemade',
+            ];
+            const isCasual = casualIndicators.some(kw => text.includes(kw));
+            if (isCasual) {
+                filteredOut++;
+                return false;
+            }
+        }
+
+        // ── Keep by default if ambiguous (don't over-filter) ──
+        return true;
+    });
+
+    if (filteredOut > 0) {
+        logger.info(`[DISAMBIGUATION] Filtered ${filteredOut} literal-use mentions of "${brandName}"`);
+    }
+
+    return filtered;
 }
 
 // ── Estimated Reach Calculator ────────────────────────
@@ -705,6 +877,20 @@ router.post('/track', async (req: Request, res: Response): Promise<void> => {
             // Update total_mentions to reflect filtered count
             data.total_mentions = (data.all_mentions || []).length;
             data.filtered_irrelevant = filteredCount;
+
+            // 0b. DICTIONARY WORD DISAMBIGUATION — filter literal-use mentions
+            if (data.all_mentions) {
+                const beforeDisambig = data.all_mentions.length;
+                data.all_mentions = filterDictionaryWordMentions(data.all_mentions, brand_name.trim(), brand_url);
+                const disambigFiltered = beforeDisambig - data.all_mentions.length;
+                if (disambigFiltered > 0) {
+                    data.total_mentions = data.all_mentions.length;
+                    data.filtered_literal = disambigFiltered;
+                }
+            }
+            if (data.top_mentions) {
+                data.top_mentions = filterDictionaryWordMentions(data.top_mentions, brand_name.trim(), brand_url);
+            }
             
             // 1. Re-classify sentiments with stricter keyword analysis
             reclassifyMentions(data);

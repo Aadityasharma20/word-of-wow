@@ -93,7 +93,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "=https://www.reddit.com/search.json?q={{ encodeURIComponent($json.brand_name) }}&sort=relevance&limit=50&t=year",
+        "url": "=https://www.reddit.com/search.json?q={{ encodeURIComponent('\"' + $json.brand_name + '\"') }}&sort=relevance&limit=50&t=year",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [

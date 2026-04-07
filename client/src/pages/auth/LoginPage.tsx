@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { Eye, EyeOff } from 'lucide-react';
 
 export default function LoginPage() {
   const { login, signInWithGoogle, error, clearError } = useAuthStore();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectTo = searchParams.get('redirect') || '/';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPwd, setShowPwd] = useState(false);
@@ -16,7 +18,7 @@ export default function LoginPage() {
     setSubmitting(true);
     try {
       await login(email, password);
-      navigate('/');
+      navigate(redirectTo);
     } catch { /* error set in store */ }
     finally { setSubmitting(false); }
   };
@@ -77,7 +79,7 @@ export default function LoginPage() {
         </form>
 
         <p style={{ textAlign: 'center', marginTop: '1.25rem', color: 'var(--color-text-secondary)', fontSize: '0.85rem' }}>
-          Don't have an account? <Link to="/auth/signup" style={{ color: 'var(--color-primary-light)', fontWeight: 600 }}>Sign up</Link>
+          Don't have an account? <Link to={`/auth/signup${redirectTo !== '/' ? `?redirect=${encodeURIComponent(redirectTo)}` : ''}`} style={{ color: 'var(--color-primary-light)', fontWeight: 600 }}>Sign up</Link>
         </p>
       </div>
     </div>
