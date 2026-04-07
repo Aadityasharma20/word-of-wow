@@ -52,20 +52,41 @@ router.get('/:campaignId', async (req: Request, res: Response): Promise<void> =>
     try {
         const { campaignId } = req.params;
 
+        // Fetch campaign with brand info via the correct FK to brand_profiles
         const { data: campaign, error } = await supabaseAdmin
             .from('campaigns')
-            .select('id, title, description, brand_id, status, embed_settings, profiles!campaigns_brand_id_fkey(company_name)')
+            .select('id, title, description, brand_id, status, brand_profiles(company_name, logo_url, website_url)')
             .eq('id', campaignId)
-            .eq('status', 'active')
             .single();
 
         if (error || !campaign) {
-            res.status(404).json({ error: 'Campaign not found or inactive', code: 404 });
+            logger.warn({ campaignId, error: error?.message }, 'Embed: campaign not found');
+            res.status(404).json({ error: 'Campaign not found', code: 404 });
             return;
         }
 
-        const embedSettings = campaign.embed_settings || DEFAULT_EMBED;
-        const brandName = (campaign as any).profiles?.company_name || 'this product';
+        // Try to get embed_settings if column exists, otherwise use defaults
+        let embedSettings = DEFAULT_EMBED;
+        try {
+            const { data: settingsRow } = await supabaseAdmin
+                .from('campaigns')
+                .select('embed_settings')
+                .eq('id', campaignId)
+                .single();
+            if (settingsRow?.embed_settings) {
+                embedSettings = { ...DEFAULT_EMBED, ...settingsRow.embed_settings };
+            }
+        } catch {
+            // embed_settings column may not exist yet — use defaults
+        }
+
+        const brandInfo = (campaign as any).brand_profiles || {};
+        const brandName = brandInfo.company_name || 'this product';
+
+        // Set CORS headers so the SDK can call this from any brand website
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
         res.json({
             success: true,
@@ -74,8 +95,9 @@ router.get('/:campaignId', async (req: Request, res: Response): Promise<void> =>
                 title: campaign.title,
                 description: campaign.description,
                 brandName,
+                brandLogo: brandInfo.logo_url || null,
                 embedSettings,
-                campaignUrl: `${process.env.FRONTEND_URL || 'http://localhost:5173'}/campaign/${campaign.id}`,
+                campaignUrl: `${process.env.FRONTEND_URL || 'https://wordofwow.com'}/campaign/${campaign.id}`,
             },
         });
     } catch (err: any) {

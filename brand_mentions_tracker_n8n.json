@@ -42,7 +42,7 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "X-API-KEY", "value": "SERPER_API_KEY_HERE" },
+            { "name": "X-API-KEY", "value": "167371c1e480f434751264e93f19eb2f319377d8" },
             { "name": "Content-Type", "value": "application/json" }
           ]
         },

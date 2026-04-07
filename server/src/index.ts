@@ -32,6 +32,15 @@ const allowedOrigins = process.env.FRONTEND_URL
     ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
     : ['http://localhost:5173', 'http://127.0.0.1:5173'];
 
+// Open CORS for public/embed endpoints (SDK runs on third-party brand sites)
+app.use('/api/embed', cors({ origin: '*', methods: ['GET', 'OPTIONS'] }));
+app.use('/api/campaigns', (req, res, next) => {
+    if (req.path.endsWith('/public') && req.method === 'GET') {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+    }
+    next();
+});
+
 app.use(cors({
     origin: allowedOrigins,
     credentials: true,
