@@ -140,15 +140,39 @@ export default function EmbedSettings() {
       if (data?.embedSettings) {
         setSettings({ ...DEFAULT_EMBED, ...data.embedSettings });
       }
-      // Auto-populate brand name into "Loved Using ..." headlines
-      const brandName = data?.brandName || '';
-      if (brandName) {
-        setSettings(prev => ({
-          ...prev,
-          stickyPill: { ...prev.stickyPill, headline: prev.stickyPill.headline.includes(brandName) ? prev.stickyPill.headline : `💬 Loved using ${brandName}?` },
-          exitIntent: { ...prev.exitIntent, headline: prev.exitIntent.headline.includes(brandName) ? prev.exitIntent.headline : `Before you go... ${brandName} has a surprise 🎁` },
-          shareFlow: { ...prev.shareFlow, suggestedText: prev.shareFlow.suggestedText?.includes('{product}') ? prev.shareFlow.suggestedText.replace('{product}', brandName) : prev.shareFlow.suggestedText },
-        }));
+      // Auto-populate brand name into all widget text fields
+      const bName = data?.brandName || '';
+      if (bName) {
+        setSettings(prev => {
+          const replaceBrand = (text: string) =>
+            text.replace(/\{brand\}/gi, bName).replace(/\{product\}/gi, bName);
+          return {
+            stickyPill: {
+              ...prev.stickyPill,
+              headline: replaceBrand(prev.stickyPill.headline),
+              cta: replaceBrand(prev.stickyPill.cta),
+              rewardText: prev.stickyPill.rewardText ? replaceBrand(prev.stickyPill.rewardText) : prev.stickyPill.rewardText,
+            },
+            exitIntent: {
+              ...prev.exitIntent,
+              headline: replaceBrand(prev.exitIntent.headline),
+              subtext: prev.exitIntent.subtext ? replaceBrand(prev.exitIntent.subtext) : prev.exitIntent.subtext,
+              cta: replaceBrand(prev.exitIntent.cta),
+            },
+            embedSection: {
+              ...prev.embedSection,
+              headline: replaceBrand(prev.embedSection.headline),
+              description: prev.embedSection.description ? replaceBrand(prev.embedSection.description) : prev.embedSection.description,
+              cta: replaceBrand(prev.embedSection.cta),
+            },
+            shareFlow: {
+              ...prev.shareFlow,
+              headline: replaceBrand(prev.shareFlow.headline),
+              suggestedText: prev.shareFlow.suggestedText ? replaceBrand(prev.shareFlow.suggestedText) : prev.shareFlow.suggestedText,
+              cta: replaceBrand(prev.shareFlow.cta),
+            },
+          };
+        });
       }
     }).catch(() => {});
   }, [selectedCampaign]);

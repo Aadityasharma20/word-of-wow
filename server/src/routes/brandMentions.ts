@@ -683,6 +683,95 @@ function calculateWowScore(data: any): number {
     return data.wow_score;
 }
 
+// ── Local WOW Insights Generator (no API needed) ──────
+// Extracts themes from mention snippets using keyword pattern matching.
+// Used as a fallback when the n8n OpenAI insights call fails.
+
+const POSITIVE_THEMES: [RegExp, string][] = [
+    [/(?:great|amazing|excellent|fantastic|wonderful|awesome|superb|outstanding)\s*(?:product|service|quality|experience|support|team)/i, 'Customers praise the overall product quality and experience'],
+    [/(?:fast|quick|speedy|rapid|instant)\s*(?:delivery|shipping|response|service|support)/i, 'Fast delivery and responsive customer service'],
+    [/(?:easy|simple|intuitive|user.?friendly|seamless)\s*(?:to use|setup|interface|navigation|experience)/i, 'Easy-to-use and intuitive user experience'],
+    [/(?:love|loved|loving|adore|enjoy)\s*(?:the|this|using|it|their)/i, 'Strong emotional connection — customers love using the product'],
+    [/(?:recommend|recommended|highly recommend|would recommend|must.?try)/i, 'High recommendation rate among customers'],
+    [/(?:best|top|favorite|favourite|go.?to|preferred)\s*(?:product|brand|choice|option|app|tool|service)/i, 'Considered a top choice/favorite in its category'],
+    [/(?:value|affordable|worth|good price|fair price|bang for.*buck|great deal)/i, 'Good value for money'],
+    [/(?:reliable|dependable|consistent|trust|trusted|trustworthy|solid)/i, 'Known for reliability and consistency'],
+    [/(?:helpful|responsive|friendly|supportive)\s*(?:staff|team|support|service|customer)/i, 'Helpful and friendly customer support'],
+    [/(?:innovative|modern|cutting.?edge|advanced|unique|creative|fresh)/i, 'Innovative approach appreciated by users'],
+];
+
+const NEGATIVE_THEMES: [RegExp, string][] = [
+    [/(?:slow|delayed|late|waiting|took.*long|takes.*forever)/i, 'Complaints about slow response times or delays'],
+    [/(?:expensive|overpriced|costly|high price|too much|ripoff|rip.?off)/i, 'Pricing concerns — perceived as too expensive'],
+    [/(?:bug|buggy|crash|error|glitch|broken|doesn.?t work|not working)/i, 'Technical issues: bugs, crashes, or errors reported'],
+    [/(?:poor|bad|terrible|horrible|awful|worst|disappointing)\s*(?:quality|service|support|experience)/i, 'Poor quality or disappointing experience'],
+    [/(?:unresponsive|no response|ignored|never replied|can.?t reach|hard to reach)/i, 'Customer support is unresponsive or hard to reach'],
+    [/(?:confusing|complicated|difficult|hard to|unclear|complex|steep learning)/i, 'Confusing or complicated user experience'],
+    [/(?:misleading|false|scam|fraud|deceptive|dishonest|fake)/i, 'Trust issues — concerns about misleading claims'],
+    [/(?:cancel|refund|return|charged|billing|subscription)\s*(?:issue|problem|difficult|impossible)/i, 'Issues with billing, cancellation, or refunds'],
+    [/(?:lack|missing|no |doesn.?t have|wish.*had|need.*more)\s*(?:feature|option|function)/i, 'Missing features or functionality gaps'],
+    [/(?:downgrade|worse|declined|used to be|went downhill|not.*anymore)/i, 'Product quality perceived as declining over time'],
+];
+
+const SUGGESTION_TEMPLATES = [
+    { condition: (neg: string[]) => neg.some(n => /slow|delay|response/i.test(n)), text: 'Invest in faster response times and set clear SLAs for customer inquiries' },
+    { condition: (neg: string[]) => neg.some(n => /expensive|pric/i.test(n)), text: 'Review pricing strategy — consider introductory offers or transparent tier comparisons' },
+    { condition: (neg: string[]) => neg.some(n => /bug|crash|error|technical/i.test(n)), text: 'Prioritize stability and bug fixes — establish a public status page for transparency' },
+    { condition: (neg: string[]) => neg.some(n => /support|unresponsive/i.test(n)), text: 'Strengthen customer support channels — consider live chat and faster ticket resolution' },
+    { condition: (neg: string[]) => neg.some(n => /confusing|complicated/i.test(n)), text: 'Simplify onboarding with guided tutorials and clearer documentation' },
+    { condition: (neg: string[]) => neg.some(n => /trust|misleading|scam/i.test(n)), text: 'Build trust through verified reviews, case studies, and transparent communication' },
+    { condition: (neg: string[]) => neg.some(n => /missing|feature|lack/i.test(n)), text: 'Create a public feature request board to prioritize what customers want most' },
+    { condition: (neg: string[]) => neg.some(n => /billing|cancel|refund/i.test(n)), text: 'Make cancellation and refund processes simple and transparent' },
+    { condition: (_neg: string[]) => true, text: 'Encourage satisfied customers to share their experience on social platforms' },
+    { condition: (_neg: string[]) => true, text: 'Monitor brand sentiment regularly and address negative mentions promptly' },
+];
+
+function generateLocalInsights(data: any): { likes: string[]; complaints: string[]; suggestions: string[] } {
+    const mentions: any[] = data.all_mentions || [];
+    const positives = mentions.filter(m => m.sentiment === 'Positive');
+    const negatives = mentions.filter(m => m.sentiment === 'Negative');
+
+    // Extract likes from positive mentions
+    const likes: string[] = [];
+    const allPosText = positives.map(m => `${m.title || ''} ${m.snippet || ''}`).join(' ');
+    for (const [pattern, theme] of POSITIVE_THEMES) {
+        if (pattern.test(allPosText) && likes.length < 5) {
+            likes.push(theme);
+        }
+    }
+    if (likes.length === 0 && positives.length > 0) {
+        likes.push('Customers are generally expressing positive sentiment about the brand');
+    }
+    if (likes.length === 0) {
+        likes.push('Not enough positive mentions to identify specific themes');
+    }
+
+    // Extract complaints from negative mentions
+    const complaints: string[] = [];
+    const allNegText = negatives.map(m => `${m.title || ''} ${m.snippet || ''}`).join(' ');
+    for (const [pattern, theme] of NEGATIVE_THEMES) {
+        if (pattern.test(allNegText) && complaints.length < 5) {
+            complaints.push(theme);
+        }
+    }
+    if (complaints.length === 0 && negatives.length > 0) {
+        complaints.push('Some negative sentiment detected but no specific recurring themes');
+    }
+    if (complaints.length === 0) {
+        complaints.push('No significant complaints found in recent mentions');
+    }
+
+    // Generate suggestions based on complaints
+    const suggestions: string[] = [];
+    for (const tmpl of SUGGESTION_TEMPLATES) {
+        if (tmpl.condition(complaints) && suggestions.length < 5) {
+            suggestions.push(tmpl.text);
+        }
+    }
+
+    return { likes, complaints, suggestions };
+}
+
 /* ═══════════════════════════════════════════════════════════
    ROUTE
    ═══════════════════════════════════════════════════════════ */
@@ -925,6 +1014,19 @@ router.post('/track', async (req: Request, res: Response): Promise<void> => {
 
             // 3. Calculate composite WOW Score
             calculateWowScore(data);
+
+            // 4. Fix WOW Insights — regenerate locally if n8n/OpenAI failed
+            const insights = data.wow_insights;
+            const insightsBroken = !insights
+                || !insights.likes
+                || !insights.complaints
+                || (insights.likes.length === 1 && insights.likes[0] === 'Unable to parse insights')
+                || (insights.likes.length === 0 && insights.complaints.length === 0);
+
+            if (insightsBroken) {
+                logger.info(`[INSIGHTS] n8n insights empty/broken for "${brand_name}" — generating locally`);
+                data.wow_insights = generateLocalInsights(data);
+            }
 
             logger.info(
                 {

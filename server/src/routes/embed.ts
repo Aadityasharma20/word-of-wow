@@ -97,7 +97,7 @@ router.get('/:campaignId', async (req: Request, res: Response): Promise<void> =>
                 brandName,
                 brandLogo: brandInfo.logo_url || null,
                 embedSettings,
-                campaignUrl: `${process.env.FRONTEND_URL || 'https://wordofwow.com'}/campaign/${campaign.id}`,
+                campaignUrl: `${(process.env.FRONTEND_URL || 'https://wordofwow.com').split(',')[0].trim()}/campaign/${campaign.id}`,
             },
         });
     } catch (err: any) {
