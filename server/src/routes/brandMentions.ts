@@ -282,19 +282,18 @@ function classifySentiment(text: string): 'Positive' | 'Negative' | 'Neutral' {
     // High-upvoted content about brands tends to be opinionated (not neutral)
 
     // ── Final classification ──────────────────────────────────────
-    // STRICT positive threshold: require score > 4 to be labeled Positive
-    // This ensures only genuinely enthusiastic, clearly positive content gets the Positive label
-    if (score > 4) return 'Positive';
-    if (score < 0) return 'Negative';
+    // Positive threshold: score > 3 (slightly relaxed from > 4)
+    if (score > 3) return 'Positive';
+    if (score < -1) return 'Negative'; // Only clearly negative (score <= -2)
     
-    // Score is 0-4 — borderline territory
-    // Only give Positive to strong scores (3-4) with substantial positive text
-    if (score >= 3 && lower.length > 150) return 'Positive';
+    // Score is 0-3 — borderline territory
+    if (score >= 2 && lower.length > 100) return 'Positive';
     
-    // Score of 1-2 with long text — lean negative
-    // (people who write at length about a brand with only mild praise often have underlying concerns)
-    if (score <= 1 && lower.length > 80) return 'Negative';
-    if (score === 0 && lower.length > 50) return 'Negative';
+    // Score of exactly 0 with negative-leaning keywords → mildly negative
+    if (score === 0 && /\b(issue|problem|complaint|disappoint|frustrat|broken|bug)/i.test(lower)) return 'Negative';
+    
+    // Score of -1 is only Negative if there's clear negative language
+    if (score === -1) return 'Neutral';
     
     return 'Neutral';
 }
@@ -613,8 +612,9 @@ function calculateWowScore(data: any): number {
     const N = (data.sentiment_breakdown?.Negative?.count || 0) / Math.max(totalMentions, 1);
     const Neutral = (data.sentiment_breakdown?.Neutral?.count || 0) / Math.max(totalMentions, 1);
 
-    const rawSentiment = (P * 1) + (N * -1.5) + (Neutral * 0.2);
-    const normalizedSentiment = (rawSentiment + 1.5) / 2.5;
+    // Reduced negative weight from -1.5 to -1.0 (less punishing)
+    const rawSentiment = (P * 1) + (N * -1.0) + (Neutral * 0.3);
+    const normalizedSentiment = (rawSentiment + 1.0) / 2.0;
     const sentimentScore = Math.min(100, Math.max(0, normalizedSentiment * 100));
 
     // 4. Authority / Source Quality (weighted average of platform scores)
@@ -642,17 +642,17 @@ function calculateWowScore(data: any): number {
     let viewsSentimentPenalty = 0;
     let sentimentByViewsScore = 50; // default mid-range if no issue
 
-    if (negativeViews > positiveViews) {
-        // Negative views EXCEED positive → -30 directly, breakdown < 10
-        viewsSentimentPenalty = 30;
-        sentimentByViewsScore = Math.max(2, Math.round(5 * (positiveViews / Math.max(negativeViews, 1))));
-    } else if (negativeViews === positiveViews || Math.abs(viewsDifference) < 7000) {
-        // Equal OR difference is less than 7000 → -15 directly, breakdown 10-30ish
-        viewsSentimentPenalty = 15;
-        sentimentByViewsScore = 10 + Math.round(20 * Math.min(1, Math.abs(viewsDifference) / 7000));
+    if (negativeViews > positiveViews * 1.5) {
+        // Negative views SIGNIFICANTLY exceed positive → -20 (reduced from -30)
+        viewsSentimentPenalty = 20;
+        sentimentByViewsScore = Math.max(5, Math.round(10 * (positiveViews / Math.max(negativeViews, 1))));
+    } else if (negativeViews > positiveViews || Math.abs(viewsDifference) < 4000) {
+        // Slightly more negative or close → -10 (reduced from -15)
+        viewsSentimentPenalty = 10;
+        sentimentByViewsScore = 15 + Math.round(25 * Math.min(1, Math.abs(viewsDifference) / 4000));
     } else {
-        // Positive is comfortably ahead — no penalty, breakdown 40-80
-        sentimentByViewsScore = 40 + Math.round(40 * Math.min(1, viewsDifference / Math.max(positiveViews, 1)));
+        // Positive is ahead — no penalty, breakdown 45-85
+        sentimentByViewsScore = 45 + Math.round(40 * Math.min(1, viewsDifference / Math.max(positiveViews, 1)));
     }
 
     // Store for frontend access
