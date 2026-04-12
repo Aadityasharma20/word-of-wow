@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const brandName = $input.first().json.body.brand_name;\nconst brandUrl = $input.first().json.body.brand_url || '';\n\nif (!brandName || brandName.trim() === '') {\n  throw new Error('brand_name is required');\n}\n\nlet domain = '';\ntry {\n  if (brandUrl) {\n    domain = new URL(brandUrl).hostname.replace('www.', '');\n  }\n} catch(e) {}\n\n// ── EXPANDED QUERY GENERATION ──\n// Generate many more diverse queries for broader coverage\nconst queries = [\n  // Core brand queries (page 1 + page 2)\n  `\"${brandName}\"`,\n  `\"${brandName}\" review OR reviews`,\n  `\"${brandName}\" experience OR opinion OR feedback`,\n  `\"${brandName}\" complaints OR problems OR issues`,\n  `\"${brandName}\" recommendation OR recommend OR suggest`,\n  `\"${brandName}\" customer service OR support`,\n  `\"${brandName}\" quality OR reliable OR worth`,\n  `\"${brandName}\" alternative OR compared OR vs`,\n  `\"${brandName}\" scam OR fraud OR fake OR legit`,\n  `\"${brandName}\" love OR hate OR amazing OR terrible`,\n  // Time-based queries\n  `\"${brandName}\" 2025 OR 2026 review`,\n  `\"${brandName}\" latest OR update OR new`,\n  // Platform-specific queries\n  `\"${brandName}\" site:reddit.com`,\n  `\"${brandName}\" site:reddit.com review OR experience`,\n  `\"${brandName}\" site:linkedin.com`,\n  `\"${brandName}\" site:twitter.com OR site:x.com`,\n  `\"${brandName}\" site:trustpilot.com`,\n  `\"${brandName}\" site:g2.com OR site:capterra.com`,\n  `\"${brandName}\" site:medium.com OR site:substack.com`,\n  `\"${brandName}\" site:quora.com`,\n  `\"${brandName}\" site:youtube.com`,\n  `\"${brandName}\" site:facebook.com`,\n  `\"${brandName}\" site:producthunt.com OR site:news.ycombinator.com`,\n  // Industry/niche queries\n  `\"${brandName}\" rating OR rated OR stars`,\n  `\"${brandName}\" pros cons`,\n  `\"${brandName}\" honest review`,\n  `\"${brandName}\" user experience UX`,\n  `\"${brandName}\" pricing OR price OR cost OR expensive OR cheap`,\n];\n\n// If we have a domain, add domain-specific queries\nif (domain) {\n  queries.push(\n    `\"${brandName}\" ${domain}`,\n    `site:${domain}`,\n    `\"${brandName}\" -site:${domain} review`\n  );\n}\n\nreturn queries.map(q => ({ json: { query: q, brand_name: brandName, brand_url: brandUrl, domain: domain } }));"
+        "jsCode": "const brandName = $input.first().json.body.brand_name;\nconst brandUrl = $input.first().json.body.brand_url || '';\n\nif (!brandName || brandName.trim() === '') {\n  throw new Error('brand_name is required');\n}\n\nlet domain = '';\ntry {\n  if (brandUrl) {\n    domain = new URL(brandUrl).hostname.replace('www.', '');\n  }\n} catch(e) {}\n\n// ── EXPANDED QUERY GENERATION ──\nconst queries = [\n  `\"${brandName}\"`,\n  `\"${brandName}\" review OR reviews`,\n  `\"${brandName}\" experience OR opinion OR feedback`,\n  `\"${brandName}\" complaints OR problems OR issues`,\n  `\"${brandName}\" recommendation OR recommend`,\n  `\"${brandName}\" customer service OR support`,\n  `\"${brandName}\" quality OR reliable OR worth`,\n  `\"${brandName}\" alternative OR compared OR vs`,\n  `\"${brandName}\" scam OR fraud OR fake OR legit`,\n  `\"${brandName}\" love OR hate OR amazing OR terrible`,\n  `\"${brandName}\" 2025 OR 2026 review`,\n  `\"${brandName}\" latest OR update OR new`,\n  `\"${brandName}\" site:reddit.com`,\n  `\"${brandName}\" site:reddit.com review OR experience`,\n  `\"${brandName}\" site:linkedin.com`,\n  `\"${brandName}\" site:twitter.com OR site:x.com`,\n  `\"${brandName}\" site:trustpilot.com`,\n  `\"${brandName}\" site:g2.com OR site:capterra.com`,\n  `\"${brandName}\" site:medium.com OR site:substack.com`,\n  `\"${brandName}\" site:quora.com`,\n  `\"${brandName}\" site:youtube.com`,\n  `\"${brandName}\" site:facebook.com`,\n  `\"${brandName}\" site:producthunt.com OR site:news.ycombinator.com`,\n  `\"${brandName}\" rating OR rated OR stars`,\n  `\"${brandName}\" pros cons`,\n  `\"${brandName}\" honest review`,\n  `\"${brandName}\" pricing OR price OR cost`,\n];\n\nif (domain) {\n  queries.push(\n    `\"${brandName}\" ${domain}`,\n    `site:${domain}`,\n    `\"${brandName}\" -site:${domain} review`\n  );\n}\n\nreturn queries.map(q => ({ json: { query: q, brand_name: brandName, brand_url: brandUrl, domain: domain } }));"
       },
       "id": "generate-queries",
       "name": "Generate Search Queries",
@@ -63,7 +63,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const results = [];\nconst data = $input.first().json;\nconst query = $('Loop Over Queries').first().json.query;\nconst brandName = $('Loop Over Queries').first().json.brand_name;\n\nif (data.organic) {\n  for (const item of data.organic) {\n    results.push({\n      title: item.title || '',\n      link: item.link || '',\n      snippet: item.snippet || '',\n      source: 'google',\n      brand_name: brandName,\n      date: item.date || null,\n      upvotes: null, num_comments: null, subreddit: null\n    });\n  }\n}\n\nif (data.peopleAlsoAsk) {\n  for (const item of data.peopleAlsoAsk) {\n    if (item.link) {\n      results.push({\n        title: item.question || '',\n        link: item.link || '',\n        snippet: item.snippet || '',\n        source: 'google_paa',\n        brand_name: brandName,\n        date: null, upvotes: null, num_comments: null, subreddit: null\n      });\n    }\n  }\n}\n\n// Also grab related searches and news if available\nif (data.relatedSearches) {\n  // Store for context but don't create mentions\n}\n\nif (data.news) {\n  for (const item of data.news) {\n    results.push({\n      title: item.title || '',\n      link: item.link || '',\n      snippet: item.snippet || item.title || '',\n      source: 'google_news',\n      brand_name: brandName,\n      date: item.date || null,\n      upvotes: null, num_comments: null, subreddit: null\n    });\n  }\n}\n\nif (results.length === 0) {\n  return [{ json: { _empty: true, brand_name: brandName } }];\n}\n\nreturn results.map(r => ({ json: r }));"
+        "jsCode": "const results = [];\nconst data = $input.first().json;\nconst brandName = $('Loop Over Queries').first().json.brand_name;\n\nif (data.organic) {\n  for (const item of data.organic) {\n    results.push({\n      title: item.title || '',\n      link: item.link || '',\n      snippet: item.snippet || '',\n      source: 'google',\n      brand_name: brandName,\n      date: item.date || null,\n      upvotes: null, num_comments: null, subreddit: null\n    });\n  }\n}\n\nif (data.peopleAlsoAsk) {\n  for (const item of data.peopleAlsoAsk) {\n    if (item.link) {\n      results.push({\n        title: item.question || '',\n        link: item.link || '',\n        snippet: item.snippet || '',\n        source: 'google_paa',\n        brand_name: brandName,\n        date: null, upvotes: null, num_comments: null, subreddit: null\n      });\n    }\n  }\n}\n\nif (data.news) {\n  for (const item of data.news) {\n    results.push({\n      title: item.title || '',\n      link: item.link || '',\n      snippet: item.snippet || item.title || '',\n      source: 'google_news',\n      brand_name: brandName,\n      date: item.date || null,\n      upvotes: null, num_comments: null, subreddit: null\n    });\n  }\n}\n\nif (results.length === 0) {\n  return [{ json: { _empty: true, brand_name: brandName } }];\n}\n\nreturn results.map(r => ({ json: r }));"
       },
       "id": "extract-google",
       "name": "Extract Google Results",
@@ -93,7 +93,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// ── MULTI-REDDIT SEARCH ──\n// Search Reddit with multiple sort orders and time ranges for maximum coverage\nconst brandName = $json.brand_name;\nconst googleResults = $json.google_results || [];\n\nconst redditSearches = [\n  { sort: 'relevance', t: 'all', limit: 100, after: '' },\n  { sort: 'new', t: 'year', limit: 100, after: '' },\n  { sort: 'top', t: 'year', limit: 100, after: '' },\n  { sort: 'comments', t: 'year', limit: 100, after: '' },\n];\n\nconst allRedditResults = [];\nconst headers = { 'User-Agent': 'BrandMentionsTracker/2.0 (by /u/wordofwow)' };\n\nfor (const search of redditSearches) {\n  try {\n    const url = `https://www.reddit.com/search.json?q=${encodeURIComponent('\"' + brandName + '\"')}&sort=${search.sort}&limit=${search.limit}&t=${search.t}`;\n    const resp = await fetch(url, { headers, signal: AbortSignal.timeout(12000) });\n    if (resp.ok) {\n      const data = await resp.json();\n      if (data?.data?.children) {\n        for (const child of data.data.children) {\n          const post = child.data;\n          if (!post) continue;\n          allRedditResults.push({\n            title: post.title || '',\n            link: 'https://www.reddit.com' + (post.permalink || ''),\n            snippet: (post.selftext || '').substring(0, 300),\n            source: 'reddit',\n            brand_name: brandName,\n            subreddit: post.subreddit || '',\n            upvotes: post.ups || 0,\n            num_comments: post.num_comments || 0,\n            date: post.created_utc ? new Date(post.created_utc * 1000).toISOString().split('T')[0] : null\n          });\n        }\n      }\n    }\n    // Rate limit delay between Reddit requests\n    await new Promise(r => setTimeout(r, 1200));\n  } catch(e) {\n    // Continue on error\n  }\n}\n\nreturn [{ json: { brand_name: brandName, google_results: googleResults, reddit_results: allRedditResults } }];"
+        "jsCode": "// ── MULTI-REDDIT SEARCH ──\nconst brandName = $json.brand_name;\nconst googleResults = $json.google_results || [];\n\nconst searches = [\n  { sort: 'relevance', t: 'all', limit: 100 },\n  { sort: 'new', t: 'year', limit: 100 },\n  { sort: 'top', t: 'year', limit: 100 },\n  { sort: 'comments', t: 'year', limit: 100 },\n];\n\nconst allReddit = [];\nconst headers = { 'User-Agent': 'BrandMentionsTracker/2.0 (by /u/wordofwow)' };\n\nfor (const s of searches) {\n  try {\n    const url = `https://www.reddit.com/search.json?q=${encodeURIComponent('\"' + brandName + '\"')}&sort=${s.sort}&limit=${s.limit}&t=${s.t}`;\n    const resp = await fetch(url, { headers, signal: AbortSignal.timeout(12000) });\n    if (resp.ok) {\n      const data = await resp.json();\n      if (data?.data?.children) {\n        for (const child of data.data.children) {\n          const post = child.data;\n          if (!post) continue;\n          allReddit.push({\n            title: post.title || '',\n            link: 'https://www.reddit.com' + (post.permalink || ''),\n            snippet: (post.selftext || '').substring(0, 300),\n            source: 'reddit',\n            brand_name: brandName,\n            subreddit: post.subreddit || '',\n            upvotes: post.ups || 0,\n            num_comments: post.num_comments || 0,\n            date: post.created_utc ? new Date(post.created_utc * 1000).toISOString().split('T')[0] : null\n          });\n        }\n      }\n    }\n    await new Promise(r => setTimeout(r, 1200));\n  } catch(e) {}\n}\n\nreturn [{ json: { brand_name: brandName, google_results: googleResults, reddit_results: allReddit } }];"
       },
       "id": "reddit-multi-search",
       "name": "Reddit Multi Search",
@@ -103,105 +103,13 @@
     },
     {
       "parameters": {
-        "jsCode": "const item = $input.first().json;\nconst brandName = item.brand_name;\nconst googleResults = item.google_results || [];\nconst redditResults = item.reddit_results || [];\n\nconst allRaw = [...googleResults, ...redditResults];\n\nif (allRaw.length === 0) {\n  return [{ json: { brand_name: brandName, error: 'No mentions found' } }];\n}\n\n// ── DEDUP ──\nconst seen = new Set();\nconst cleaned = [];\nfor (const m of allRaw) {\n  if (!m.link) continue;\n  const norm = m.link.toLowerCase().replace(/\\/$/, '').replace(/^https?:\\/\\//, '').replace(/^www\\./, '').replace(/[?#].*$/, '');\n  if (seen.has(norm)) continue;\n  if (!m.title && !m.snippet) continue;\n  seen.add(norm);\n  cleaned.push(m);\n}\n\n// ── PLATFORM DETECTION ──\nconst rules = [\n  [/reddit\\.com/i, 'Reddit'], [/linkedin\\.com/i, 'LinkedIn'],\n  [/twitter\\.com|x\\.com/i, 'Twitter/X'], [/medium\\.com/i, 'Blog (Medium)'],\n  [/quora\\.com/i, 'Quora'], [/trustpilot\\.com/i, 'Trustpilot'],\n  [/g2\\.com/i, 'G2'], [/capterra\\.com/i, 'Capterra'],\n  [/youtube\\.com|youtu\\.be/i, 'YouTube'], [/facebook\\.com/i, 'Facebook'],\n  [/instagram\\.com/i, 'Instagram'], [/github\\.com/i, 'GitHub'],\n  [/glassdoor\\.com/i, 'Glassdoor'], [/producthunt\\.com/i, 'Product Hunt'],\n  [/news\\.ycombinator/i, 'Hacker News'], [/tiktok\\.com/i, 'TikTok'],\n  [/pinterest\\.com/i, 'Pinterest'], [/yelp\\.com/i, 'Yelp'],\n  [/amazon\\.com.*review|amazon\\.com.*product/i, 'Amazon'],\n  [/bbb\\.org/i, 'BBB'], [/sitejabber\\.com/i, 'Sitejabber'],\n  [/forbes|techcrunch|bbc\\.|nytimes|bloomberg|reuters|cnbc|wsj\\.com|theverge|wired\\.com|mashable|engadget/i, 'News'],\n  [/wordpress|blogspot|\\.blog|substack\\.com/i, 'Blog'],\n  [/reddit\\.com\\/r\\//i, 'Reddit']\n];\n\nconst withPlatform = cleaned.map(m => {\n  let platform = 'Other';\n  for (const [pattern, name] of rules) {\n    if (pattern.test(m.link)) { platform = name; break; }\n  }\n  return { ...m, platform };\n});\n\nreturn [{ json: { brand_name: brandName, mentions: withPlatform } }];"
-      },
-      "id": "merge-dedup",
-      "name": "Merge, Dedup & Platforms",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [2000, 400]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Build a SINGLE batched prompt for RELEVANCE + SENTIMENT — 1 API call\nconst item = $input.first().json;\nconst brandName = item.brand_name;\nconst mentions = item.mentions || [];\n\nconst domain = $('Generate Search Queries').first().json.domain || '';\nconst brandUrl = $('Generate Search Queries').first().json.brand_url || '';\n\n// For large mention lists, we need to batch in groups of ~150\n// (OpenAI context window can handle ~150 short descriptions)\nconst BATCH_SIZE = 150;\nconst batches = [];\nfor (let i = 0; i < mentions.length; i += BATCH_SIZE) {\n  batches.push(mentions.slice(i, i + BATCH_SIZE));\n}\n\nlet brandContext = `Brand: ${brandName}`;\nif (domain) brandContext += ` (website: ${domain})`;\nif (brandUrl) brandContext += ` — ${brandUrl}`;\n\n// If only 1 batch, use single prompt. If multiple, still combine into one.\nconst mentionList = mentions.map((m, i) => {\n  const text = (m.title + ' ' + (m.snippet || '')).substring(0, 120);\n  return `${i + 1}. ${text}`;\n}).join('\\n');\n\nconst prompt = `For each numbered mention below, determine:\n1. Is it RELEVANT to the brand/company \"${brandName}\"${domain ? ' (' + domain + ')' : ''}? (not just the literal word)\n2. What is the sentiment?\n\nRespond with a comma-separated list using these 2-letter codes:\nRP = Relevant+Positive, RN = Relevant+Negative, RU = Relevant+Neutral\nIP = Irrelevant+Positive, IN = Irrelevant+Negative, IU = Irrelevant+Neutral\n\n${brandContext}\n\n${mentionList}\n\nRespond with ONLY the comma-separated codes. Example: RP,IU,RN,RP,IN`;\n\nreturn [{ json: {\n  brand_name: brandName,\n  mentions: mentions,\n  prompt: prompt\n}}];"
-      },
-      "id": "prep-sentiment",
-      "name": "Prep Batch Sentiment",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [2250, 400]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://api.openai.com/v1/chat/completions",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            { "name": "Authorization", "value": "=Bearer OPENAI_API_KEY_HERE" },
-            { "name": "Content-Type", "value": "application/json" }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: 'You classify brand mention relevance and sentiment. Respond ONLY with comma-separated 2-letter codes: RP, RN, RU, IP, IN, IU. No other text.' }, { role: 'user', content: $json.prompt }], max_tokens: 2000, temperature: 0 }) }}",
-        "options": { "timeout": 60000 }
-      },
-      "id": "openai-batch",
-      "name": "OpenAI Batch Sentiment",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [2500, 400],
-      "retryOnFail": true,
-      "maxTries": 2,
-      "waitBetweenTries": 1000,
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "const openaiResponse = $input.first().json;\nconst prevData = $('Prep Batch Sentiment').first().json;\nconst brandName = prevData.brand_name;\nconst mentions = prevData.mentions || [];\n\nlet codes = [];\ntry {\n  const raw = openaiResponse.choices[0].message.content.trim();\n  codes = raw.split(',').map(s => s.trim().toUpperCase());\n} catch(e) {\n  codes = [];\n}\n\nconst sentimentMap = { 'P': 'Positive', 'N': 'Negative', 'U': 'Neutral' };\n\n// Filter out irrelevant mentions (I-prefixed) and attach sentiment\nconst relevant = [];\nfor (let i = 0; i < mentions.length; i++) {\n  const code = codes[i] || 'RU';\n  const isRelevant = !code.startsWith('I');\n  if (isRelevant) {\n    const sentCode = code.length === 2 ? code[1] : code[0];\n    relevant.push({ ...mentions[i], sentiment: sentimentMap[sentCode] || 'Neutral' });\n  }\n}\n\nreturn [{ json: { brand_name: brandName, mentions: relevant } }];"
-      },
-      "id": "parse-sentiment",
-      "name": "Parse Sentiment Results",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [2750, 400]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Build WOW Insights prompt from ALL mentions\nconst item = $input.first().json;\nconst brandName = item.brand_name;\nconst mentions = item.mentions || [];\n\nconst negative = mentions.filter(m => m.sentiment === 'Negative' || m.sentiment === 'Neutral');\nconst positive = mentions.filter(m => m.sentiment === 'Positive');\n\nconst negList = negative.slice(0, 25).map((m, i) => `${i+1}. [${m.sentiment}] ${m.title} — ${(m.snippet || '').substring(0, 120)}`).join('\\n');\nconst posList = positive.slice(0, 20).map((m, i) => `${i+1}. ${m.title} — ${(m.snippet || '').substring(0, 120)}`).join('\\n');\n\nconst insightsPrompt = `You are a brand strategist analyzing mentions about \"${brandName}\".\n\nNEGATIVE/NEUTRAL MENTIONS:\n${negList || 'None found'}\n\nPOSITIVE MENTIONS:\n${posList || 'None found'}\n\nProvide:\nA) LIKES: 3-5 things customers already like about the brand\nB) COMPLAINTS: 3-5 specific pain points customers mention\nC) SUGGESTIONS: 3-5 concrete actionable steps to improve\n\nReply ONLY in this exact JSON format:\n{\"likes\":[\"like 1\",\"like 2\"],\"complaints\":[\"complaint 1\",\"complaint 2\"],\"suggestions\":[\"suggestion 1\",\"suggestion 2\"]}`;\n\nreturn [{ json: { brand_name: brandName, mentions: mentions, insights_prompt: insightsPrompt } }];"
-      },
-      "id": "prep-insights",
-      "name": "Prep WOW Insights",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [3000, 400]
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://api.openai.com/v1/chat/completions",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            { "name": "Authorization", "value": "=Bearer OPENAI_API_KEY_HERE" },
-            { "name": "Content-Type", "value": "application/json" }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: 'You are a brand strategist. Respond ONLY with valid JSON, no markdown, no extra text.' }, { role: 'user', content: $json.insights_prompt }], max_tokens: 500, temperature: 0.3 }) }}",
-        "options": { "timeout": 30000 }
-      },
-      "id": "openai-insights",
-      "name": "OpenAI WOW Insights",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [3250, 400],
-      "retryOnFail": true,
-      "maxTries": 2,
-      "waitBetweenTries": 1000,
-      "onError": "continueRegularOutput"
-    },
-    {
-      "parameters": {
-        "jsCode": "// Parse WOW Insights and build final aggregated output\nconst insightsResponse = $input.first().json;\nconst prevData = $('Prep WOW Insights').first().json;\nconst brandName = prevData.brand_name;\nconst mentions = prevData.mentions || [];\nconst total = mentions.length;\n\n// Parse insights\nlet wowInsights = { likes: [], complaints: [], suggestions: [] };\ntry {\n  let raw = insightsResponse.choices[0].message.content.trim();\n  // Remove markdown code fences if present\n  raw = raw.replace(/```json\\n?/g, '').replace(/```\\n?/g, '').trim();\n  wowInsights = JSON.parse(raw);\n} catch(e) {\n  wowInsights = { likes: ['Unable to parse insights'], complaints: ['Unable to parse insights'], suggestions: ['Try tracking again'] };\n}\n\n// Platform breakdown\nconst platCounts = {};\nfor (const m of mentions) {\n  platCounts[m.platform] = (platCounts[m.platform] || 0) + 1;\n}\nconst platform_breakdown = {};\nfor (const [k, v] of Object.entries(platCounts)) {\n  platform_breakdown[k] = { count: v, percentage: total > 0 ? Math.round((v / total) * 10000) / 100 : 0 };\n}\n\n// Sentiment breakdown\nconst sentCounts = { Positive: 0, Negative: 0, Neutral: 0 };\nfor (const m of mentions) sentCounts[m.sentiment || 'Neutral']++;\nconst sentiment_breakdown = {};\nfor (const [k, v] of Object.entries(sentCounts)) {\n  sentiment_breakdown[k] = { count: v, percentage: total > 0 ? Math.round((v / total) * 10000) / 100 : 0 };\n}\n\n// Sentiment by platform\nconst sentiment_by_platform = {};\nfor (const m of mentions) {\n  const p = m.platform || 'Other';\n  if (!sentiment_by_platform[p]) sentiment_by_platform[p] = { Positive: 0, Negative: 0, Neutral: 0 };\n  sentiment_by_platform[p][m.sentiment || 'Neutral']++;\n}\n\n// Score + top mentions\nconst scored = mentions.map(m => {\n  let score = (m.upvotes || 0) * 2 + (m.num_comments || 0);\n  score += (m.snippet || '').length > 100 ? 10 : 5;\n  if (['Trustpilot', 'G2', 'Glassdoor', 'Product Hunt', 'Capterra', 'Yelp'].includes(m.platform)) score += 15;\n  if (m.platform === 'Reddit') score += 5;\n  if (m.platform === 'News') score += 12;\n  if (m.sentiment === 'Negative') score += 8;\n  return { ...m, relevance_score: score };\n}).sort((a, b) => b.relevance_score - a.relevance_score);\n\nconst top_mentions = scored.slice(0, 10).map(m => ({\n  title: m.title, link: m.link, platform: m.platform, sentiment: m.sentiment,\n  snippet: (m.snippet || '').substring(0, 200),\n  upvotes: m.upvotes || null, num_comments: m.num_comments || null,\n  subreddit: m.subreddit || null, relevance_score: m.relevance_score, date: m.date || null\n}));\n\nreturn [{ json: {\n  brand_name: brandName,\n  tracked_at: new Date().toISOString(),\n  total_mentions: total,\n  platform_breakdown,\n  sentiment_breakdown,\n  sentiment_by_platform,\n  wow_insights: wowInsights,\n  negative_sources: scored.filter(m => m.sentiment === 'Negative').slice(0, 10).map(m => ({ title: m.title, link: m.link, platform: m.platform, snippet: (m.snippet || '').substring(0, 100) })),\n  top_mentions,\n  all_mentions: scored.map(m => ({\n    title: m.title, link: m.link, platform: m.platform, sentiment: m.sentiment,\n    snippet: (m.snippet || '').substring(0, 200),\n    upvotes: m.upvotes || null, subreddit: m.subreddit || null,\n    date: m.date || null, relevance_score: m.relevance_score\n  }))\n}}];"
+        "jsCode": "const item = $input.first().json;\nconst brandName = item.brand_name;\nconst googleResults = item.google_results || [];\nconst redditResults = item.reddit_results || [];\n\nconst allRaw = [...googleResults, ...redditResults];\n\nif (allRaw.length === 0) {\n  return [{ json: { brand_name: brandName, total_mentions: 0, all_mentions: [], top_mentions: [], platform_breakdown: {}, sentiment_breakdown: { Positive: { count: 0, percentage: 0 }, Negative: { count: 0, percentage: 0 }, Neutral: { count: 0, percentage: 0 } }, sentiment_by_platform: {}, wow_insights: { likes: [], complaints: [], suggestions: [] } } }];\n}\n\n// Dedup by URL\nconst seen = new Set();\nconst cleaned = [];\nfor (const m of allRaw) {\n  if (!m.link) continue;\n  const norm = m.link.toLowerCase().replace(/\\/$/, '').replace(/^https?:\\/\\//, '').replace(/^www\\./, '').replace(/[?#].*$/, '');\n  if (seen.has(norm)) continue;\n  if (!m.title && !m.snippet) continue;\n  seen.add(norm);\n  cleaned.push(m);\n}\n\n// Platform detection\nconst rules = [\n  [/reddit\\.com/i, 'Reddit'], [/linkedin\\.com/i, 'LinkedIn'],\n  [/twitter\\.com|x\\.com/i, 'Twitter/X'], [/medium\\.com/i, 'Blog (Medium)'],\n  [/quora\\.com/i, 'Quora'], [/trustpilot\\.com/i, 'Trustpilot'],\n  [/g2\\.com/i, 'G2'], [/capterra\\.com/i, 'Capterra'],\n  [/youtube\\.com|youtu\\.be/i, 'YouTube'], [/facebook\\.com/i, 'Facebook'],\n  [/instagram\\.com/i, 'Instagram'], [/github\\.com/i, 'GitHub'],\n  [/glassdoor\\.com/i, 'Glassdoor'], [/producthunt\\.com/i, 'Product Hunt'],\n  [/news\\.ycombinator/i, 'Hacker News'], [/tiktok\\.com/i, 'TikTok'],\n  [/yelp\\.com/i, 'Yelp'], [/amazon\\.com/i, 'Amazon'],\n  [/bbb\\.org/i, 'BBB'], [/sitejabber\\.com/i, 'Sitejabber'],\n  [/forbes|techcrunch|bbc\\.|nytimes|bloomberg|reuters|cnbc|wsj|theverge|wired|mashable|engadget/i, 'News'],\n  [/wordpress|blogspot|\\.blog|substack/i, 'Blog'],\n];\n\nconst withPlatform = cleaned.map(m => {\n  let platform = 'Other';\n  for (const [pattern, name] of rules) {\n    if (pattern.test(m.link)) { platform = name; break; }\n  }\n  return { ...m, platform, sentiment: 'Neutral' };\n});\n\n// Basic sentiment + platform breakdown (server will re-classify more accurately)\nconst total = withPlatform.length;\nconst platCounts = {};\nfor (const m of withPlatform) platCounts[m.platform] = (platCounts[m.platform] || 0) + 1;\nconst platform_breakdown = {};\nfor (const [k, v] of Object.entries(platCounts)) {\n  platform_breakdown[k] = { count: v, percentage: total > 0 ? Math.round((v / total) * 10000) / 100 : 0 };\n}\n\nconst top_mentions = withPlatform.slice(0, 10).map(m => ({\n  title: m.title, link: m.link, platform: m.platform, sentiment: m.sentiment,\n  snippet: (m.snippet || '').substring(0, 200),\n  upvotes: m.upvotes || null, num_comments: m.num_comments || null,\n  subreddit: m.subreddit || null, date: m.date || null\n}));\n\nreturn [{ json: {\n  brand_name: brandName,\n  tracked_at: new Date().toISOString(),\n  total_mentions: total,\n  platform_breakdown,\n  sentiment_breakdown: { Positive: { count: 0, percentage: 0 }, Negative: { count: 0, percentage: 0 }, Neutral: { count: total, percentage: 100 } },\n  sentiment_by_platform: {},\n  wow_insights: { likes: [], complaints: [], suggestions: [] },\n  top_mentions,\n  all_mentions: withPlatform.map(m => ({\n    title: m.title, link: m.link, platform: m.platform, sentiment: m.sentiment,\n    snippet: (m.snippet || '').substring(0, 300),\n    upvotes: m.upvotes || null, subreddit: m.subreddit || null,\n    date: m.date || null\n  }))\n}}];"
       },
       "id": "aggregate",
       "name": "Aggregate & Build Output",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [3500, 400]
+      "position": [2000, 400]
     }
   ],
   "connections": {
@@ -230,24 +138,6 @@
       "main": [[{ "node": "Reddit Multi Search", "type": "main", "index": 0 }]]
     },
     "Reddit Multi Search": {
-      "main": [[{ "node": "Merge, Dedup & Platforms", "type": "main", "index": 0 }]]
-    },
-    "Merge, Dedup & Platforms": {
-      "main": [[{ "node": "Prep Batch Sentiment", "type": "main", "index": 0 }]]
-    },
-    "Prep Batch Sentiment": {
-      "main": [[{ "node": "OpenAI Batch Sentiment", "type": "main", "index": 0 }]]
-    },
-    "OpenAI Batch Sentiment": {
-      "main": [[{ "node": "Parse Sentiment Results", "type": "main", "index": 0 }]]
-    },
-    "Parse Sentiment Results": {
-      "main": [[{ "node": "Prep WOW Insights", "type": "main", "index": 0 }]]
-    },
-    "Prep WOW Insights": {
-      "main": [[{ "node": "OpenAI WOW Insights", "type": "main", "index": 0 }]]
-    },
-    "OpenAI WOW Insights": {
       "main": [[{ "node": "Aggregate & Build Output", "type": "main", "index": 0 }]]
     }
   },
@@ -257,5 +147,5 @@
   "staticData": null,
   "tags": [{ "name": "Brand Monitoring" }],
   "pinData": {},
-  "versionId": "6"
+  "versionId": "7"
 }

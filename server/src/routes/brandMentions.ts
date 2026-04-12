@@ -2,6 +2,10 @@ import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../middleware/authMiddleware';
 import { logger } from '../lib/logger';
 import { isDictionaryWord } from '../lib/commonWords';
+import { processMentionsPipeline, loadAmbiguousBrands } from '../lib/brandAmbiguity';
+
+// Pre-load ambiguity list into memory at startup
+loadAmbiguousBrands();
 
 const router = Router();
 
@@ -942,7 +946,13 @@ router.post('/track', async (req: Request, res: Response): Promise<void> => {
                 });
             }
             
-            // 0. RELEVANCY FILTER — remove irrelevant mentions
+            // ═══════════════════════════════════════════════════════
+            // SMART PIPELINE: Dedup → Rule-filter → Conditional AI
+            // Uses cached brand context + static ambiguity list
+            // Non-ambiguous brands = ZERO AI calls for filtering
+            // ═══════════════════════════════════════════════════════
+
+            // 0. RELEVANCY FILTER — basic keyword relevancy scoring
             const brandNameLower = brand_name.trim().toLowerCase();
             let filteredCount = 0;
             if (data.all_mentions) {
@@ -963,22 +973,27 @@ router.post('/track', async (req: Request, res: Response): Promise<void> => {
                     return score >= 0.3;
                 });
             }
-            // Update total_mentions to reflect filtered count
             data.total_mentions = (data.all_mentions || []).length;
             data.filtered_irrelevant = filteredCount;
 
-            // 0b. DICTIONARY WORD DISAMBIGUATION — filter literal-use mentions
-            if (data.all_mentions) {
-                const beforeDisambig = data.all_mentions.length;
-                data.all_mentions = filterDictionaryWordMentions(data.all_mentions, brand_name.trim(), brand_url);
-                const disambigFiltered = beforeDisambig - data.all_mentions.length;
-                if (disambigFiltered > 0) {
-                    data.total_mentions = data.all_mentions.length;
-                    data.filtered_literal = disambigFiltered;
+            // 0b. SMART AMBIGUITY PIPELINE — replaces old dictionary filter
+            // Handles: dedup, rule-based pre-filter, cached brand context,
+            // GPT-4o-mini classification ONLY for ambiguous brands
+            if (data.all_mentions && data.all_mentions.length > 0) {
+                const { filtered: smartFiltered, stats } = await processMentionsPipeline(
+                    data.all_mentions,
+                    brand_name.trim(),
+                    brand_url
+                );
+                data.all_mentions = smartFiltered;
+                data.total_mentions = smartFiltered.length;
+                data.pipeline_stats = stats;
+
+                // Also apply to top_mentions
+                if (data.top_mentions) {
+                    const topLinks = new Set(smartFiltered.map((m: any) => m.link));
+                    data.top_mentions = data.top_mentions.filter((m: any) => topLinks.has(m.link));
                 }
-            }
-            if (data.top_mentions) {
-                data.top_mentions = filterDictionaryWordMentions(data.top_mentions, brand_name.trim(), brand_url);
             }
             
             // 1. Re-classify sentiments with stricter keyword analysis
